@@ -12,7 +12,7 @@ window.FS_CONFIG = {
   SUPABASE_KEY: "sb_publishable_ShF_s-NdAlS1dumPHb9zZA_xpTn3VJP",
 
   // Nomor WhatsApp Business kamu, diawali 62, tanpa +, spasi, atau tanda hubung. Contoh: "6281234567890"
-  WHATSAPP_NUMBER: "",
+  WHATSAPP_NUMBER: "6287783868880",
 
   OWNER_NAME: "Bayu",
   HANDLE: "@failover.plan",
