@@ -53,8 +53,11 @@ Pasang **Greeting message** biar tiap orang yang kirim kode langsung dapat balas
 ## Kerja harian di Lead Desk
 
 1. Buka Lead Desk tiap malam. Filter **Lewat janji** nunjukin yang Report-nya udah lewat dari 2 hari kerja.
-2. Buka lead-nya, tekan **Salin ringkasan buat Report**. Semua jawaban dan hitungan kesalin dalam bentuk teks.
-3. Kirim Report lewat WhatsApp, lalu ganti status jadi **Report dikirim**.
+2. Buka lead-nya. Di bagian **Draft Report buat WhatsApp**, Report-nya udah tersusun otomatis dari jawaban dia.
+3. Baca dan edit seperlunya di kotak itu, tekan **Salin Report**, lalu tempel di chat WhatsApp dia (cari pakai kode `FP-XXXX` yang dia kirim).
+4. Ganti status jadi **Report dikirim**, lalu **Simpan**.
+
+Kalau butuh data mentahnya, misalnya buat diskusi sama mentor, pakai **Salin ringkasan buat Report**.
 
 ## Data dan keamanan
 

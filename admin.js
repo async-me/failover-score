@@ -120,13 +120,121 @@
     if (!f.deps.none && f.deps.saudara) p.push((f.sibs > 1 ? f.sibs + " saudara" : "saudara") + ", paling kecil " + f.sibYoungest + " th");
     return p.length ? " (" + p.join("; ") + ")" : "";
   }
-  async function copy(text){
-    try { await navigator.clipboard.writeText(text); toast("Ringkasan disalin"); }
+  async function copy(text, done){
+    done = done || "Ringkasan disalin";
+    try { await navigator.clipboard.writeText(text); toast(done); }
     catch (e) {
       const t = document.createElement("textarea"); t.value = text; document.body.appendChild(t); t.select();
-      try { document.execCommand("copy"); toast("Ringkasan disalin"); } catch (e2) { toast("Nggak bisa nyalin otomatis"); }
+      try { document.execCommand("copy"); toast(done); } catch (e2) { toast("Nggak bisa nyalin otomatis. Blok teksnya, lalu salin manual."); }
       t.remove();
     }
+  }
+
+  /* ---------- draft Report buat dikirim lewat WhatsApp ----------
+   * Isinya sama dengan Report di simulator: ringkasan, gambaran keluarga, coverage, action plan, catatan.
+   * Format WhatsApp: *tebal* dan _miring_. Selalu dibaca dan diedit dulu sebelum dikirim.
+   */
+  function reportText(lead){
+    const ans = ansOf(lead), f = formOf(lead), d = FS.derive(f);
+    if (!FS.complete(ans)) return "Jawaban kuis lead ini nggak lengkap, jadi Report-nya nggak bisa disusun otomatis.";
+    const name = (lead.name || "").trim() || "Kamu";
+    const work = ["karyawan tetap", "karyawan kontrak", "freelance"][ans[7]];
+    const syariah = f.pref === "syariah" ? " syariah" : "";
+    const spouse = f.spouse || "pasangan";
+    const incomeLabel = label(INCOME, f.income).replace(/^Di /, "di ");
+    const L = [];
+
+    const have = [];
+    if (ans[3] === 0) have.push("BPJS aktif");
+    if (ans[4] > 0) have.push("asuransi kesehatan " + (ans[4] === 1 ? "dari kantor" : "sendiri"));
+    if (d.hasDeps && ans[5] > 0) have.push("asuransi jiwa " + (ans[5] === 1 ? "dari kantor" : "sendiri"));
+    if (d.debts.length === 0) have.push("tanpa cicilan");
+    const phrase = i => ({0:"pemasukan yang masih dari 1 sumber", 2:"emergency fund yang baru " + FS.efText(d.ef), 3:"status BPJS Kesehatan",
+      4: ans[4] === 1 ? "asuransi kesehatan yang masih dari kantor" : "asuransi kesehatan di luar BPJS",
+      5: ans[5] === 1 ? "proteksi pemasukan yang masih bergantung ke kantor" : "proteksi pemasukan buat keluarga",
+      6:"porsi cicilan", 7: ans[7] === 1 ? "pemasukan yang bergantung ke kontrak" : "pemasukan yang naik-turun"})[i];
+    const top = FS.weak(ans).filter(x => x.i !== 0).slice(0, 2).map(x => phrase(x.i));
+
+    L.push("*Failover Report untuk " + name + "*");
+    L.push(new Date().toLocaleDateString("id-ID", {day:"numeric", month:"long", year:"numeric"}));
+    L.push("", "*Ringkasan*");
+    L.push(name + ", " + (lead.age || "–") + ", " + work + ", " + (d.hasDeps ? "menanggung " + FS.joinID(d.deps) : "belum ada tanggungan") + ". " +
+      (have.length ? "Fondasinya udah ada: " + FS.joinID(have) + ". " : "Fondasinya masih bisa banyak diperkuat, dan itu wajar. ") +
+      (top.length ? (top.length > 1 ? "Dua hal yang paling perlu diperkuat: " : "Yang paling perlu diperkuat: ") + FS.joinID(top) + "." : "Backup-nya udah kuat, tinggal dijaga."));
+
+    L.push("", "*Gambaran keluarga*");
+    L.push("- " + name + ", pemasukan " + incomeLabel + " per bulan");
+    if (d.hasDeps){
+      if (f.deps.pasangan) L.push("- " + FS.cap(spouse));
+      if (f.deps.anak) L.push("- " + (f.kids > 1 ? f.kids + " anak, paling kecil " + f.youngest + " tahun" : "Anak, " + f.youngest + " tahun"));
+      if (f.deps.saudara) L.push("- " + (f.sibs > 1 ? f.sibs + " saudara, paling kecil " + f.sibYoungest + " tahun" : "Saudara, " + f.sibYoungest + " tahun"));
+      if (f.deps.orangtua) L.push("- Orang tua");
+    } else L.push("- Belum ada tanggungan");
+    L.push("");
+    L.push("- " + (ans[3] === 0 ? "BPJS Kesehatan aktif" : ans[3] === 1 ? "BPJS Kesehatan belum aktif" : "Status BPJS belum pasti"));
+    L.push("- " + (ans[4] === 0 ? "Belum ada asuransi kesehatan selain BPJS" : "Asuransi kesehatan " + (ans[4] === 1 ? "dari kantor" : "sendiri")));
+    L.push("- " + (d.hasDeps ? (ans[5] === 2 ? "Asuransi jiwa sendiri" : "Asuransi jiwa " + (ans[5] === 1 ? "dari kantor" : "belum ada")) : "Asuransi jiwa belum perlu"));
+    L.push("- Emergency fund " + FS.efText(d.ef));
+    d.debts.forEach(x => L.push("- " + (x.k === "kpr" ? "KPR" : x.label) + " " + FS.rp(x.monthly) + " per bulan, sisa " + x.dur + " " + x.unit));
+    if (f.commute) L.push("- Perjalanan ke kantor " + label(COMMUTE, f.commute).toLowerCase());
+
+    L.push("");
+    if (d.hasDeps){
+      L.push("*Coverage yang pas*");
+      L.push("Kalau suatu saat kamu udah nggak ada, berapa yang dibutuhkan keluarga biar hidup tetap jalan" + (d.youngLabel ? " sampai " + d.youngLabel + " mandiri" : "") + "?");
+      L.push("");
+      L.push("Pengeluaran rutin " + FS.rp(d.expense) + " per bulan");
+      L.push("x 12 bulan = " + FS.rp(d.expense * 12) + " setahun");
+      L.push("x " + d.years + " tahun = " + FS.rp(d.base));
+      L.push("_Kenapa " + d.years + " tahun: " + d.yearsWhy + "._");
+      if (d.remaining > 0) L.push("Ditambah sisa cicilan " + FS.rp(d.remaining));
+      L.push("Dikurangi tabungan yang udah ada " + FS.rp(d.savings));
+      L.push("*Total kebutuhan: " + FS.approx(d.need) + "*");
+      if (ans[5] === 1) L.push("", "Total itu masih perlu dikurangi asuransi jiwa dari kantor. Coba tanya HR berapa nilainya. Selisihnya itulah yang perlu kamu tutup sendiri.");
+      else if (ans[5] === 2) L.push("", "Total itu masih perlu dikurangi asuransi jiwa yang udah kamu punya, lihat nilainya di polis. Selisihnya itulah yang perlu kamu tutup sendiri.");
+      else L.push("", "Angka ini yang perlu ditutup dengan asuransi jiwa.");
+      if (d.kpr) L.push("", "Catatan soal KPR: biasanya udah termasuk asuransi jiwa kredit yang melunasi sisa cicilannya. Cek di dokumen akad KPR. Kalau iya, cicilan KPR dicoret dan totalnya jadi " + FS.approx(d.need - d.kpr.remaining) + ".");
+      L.push("", "_Hitungan sederhana, belum termasuk inflasi dan hasil investasi. Ilustrasi, bukan janji manfaat._");
+    } else {
+      L.push("*Asuransi jiwa belum prioritas*");
+      L.push("Belum ada yang bergantung ke pemasukanmu, jadi asuransi jiwa belum mendesak." + (d.remaining > 0 ? " Kalau mau, yang kecil cukup buat nutup sisa cicilan " + FS.rp(d.remaining) + " biar nggak jadi beban keluarga." : "") + " Cek lagi kalau nanti menikah atau mulai bantu biaya orang tua.");
+    }
+
+    const plan = [];
+    if (ans[3] !== 0) plan.push(["Aktifkan BPJS Kesehatan", "Fondasi paling murah buat biaya kesehatan. Cek status dan caranya di Mobile JKN."]);
+    if (d.outflow > 0 && d.ef < 3){
+      const t3 = 3 * d.outflow;
+      plan.push(["Emergency fund ke 3 bulan dulu", "Target " + FS.rp(t3) + ", dari 3 x " + FS.rp(d.outflow) + " (pengeluaran" + (d.debtMonthly ? " + cicilan" : "") + "). Sekarang " + FS.rp(d.savings) + ", kurang " + FS.rp(t3 - d.savings) + ". Setelah itu lanjut pelan-pelan ke 6 bulan."]);
+    } else if (d.outflow > 0 && d.ef < 6 && (ans[7] !== 0 || d.hasDeps)){
+      const t6 = 6 * d.outflow;
+      plan.push(["Emergency fund lanjut ke 6 bulan", "Target " + FS.rp(t6) + ". Sekarang " + FS.rp(d.savings) + ", kurang " + FS.rp(t6 - d.savings) + ". Nggak buru-buru, yang penting rutin."]);
+    }
+    if (f.commute === "1-2" || f.commute === "gt2"){
+      const lbl = label(COMMUTE, f.commute).toLowerCase();
+      plan.push(["Cek BPJS Ketenagakerjaan", ans[7] === 2
+        ? "Perjalanan " + lbl + " tiap hari bikin waktu di jalan lebih panjang. Freelancer bisa daftar BPJS Ketenagakerjaan sendiri sebagai peserta mandiri, dan iurannya ringan."
+        : "Perjalanan " + lbl + " tiap hari bikin waktu di jalan lebih panjang. BPJS Ketenagakerjaan dari kantor juga nanggung kecelakaan di perjalanan berangkat dan pulang kerja. Pastikan statusnya aktif."]);
+    }
+    if (ans[4] === 1 && ans[7] !== 1) plan.push(["Cek asuransi kesehatan kantor", d.careDeps.length ? "Udah aman buat sekarang. Cukup cek dua hal: limitnya per tahun, dan apakah " + FS.joinID(d.careDeps) + " ikut ditanggung." : "Udah aman buat sekarang. Cukup cek limitnya per tahun."]);
+    if (d.hasDeps && ans[5] !== 2) plan.push(["Asuransi jiwa" + syariah + " punya sendiri", "Buat nutup kebutuhan di atas, pilih yang proteksi murni." + (ans[5] === 1 ? " Yang dari kantor tetap jalan, tapi ikut berhenti kalau kamu pindah kerja." : "") + (!f.deps.anak && f.deps.pasangan ? " Kalau nanti punya anak, hitungannya naik dan Report bisa dihitung ulang." : "")]);
+    if (ans[4] === 0) plan.push(["Asuransi kesehatan" + syariah, "Biar biaya rumah sakit nggak ngambil dari emergency fund. Pilih yang biayanya muat di budget di bawah."]);
+    if (ans[4] === 1 && ans[7] === 1) plan.push(["Siapin asuransi kesehatan" + syariah + " sendiri", "Yang dari kantor ikut berhenti kalau kontrak selesai. Nggak harus sekarang, tapi siapin sebelum kontrak habis."]);
+    if (!plan.length) plan.push(["Review setahun sekali", "Backup-mu udah kuat. Cek lagi tiap ada perubahan besar: menikah, punya anak, pindah kerja, atau ambil cicilan."]);
+
+    L.push("", "*Action plan*", "_Urutannya mulai dari yang paling murah._");
+    plan.forEach((p, i) => L.push("", (i + 1) + ". *" + p[0] + "*", p[1]));
+
+    if (ans[0] === 0) L.push("", "*Soal pemasukan dari 1 sumber*", "Nggak harus nambah kerjaan. Selama pemasukan masih dari 1 sumber, emergency fund dan proteksi di atas itulah backup-nya.");
+    if (f.income) L.push("", "*Budget*", "Patokan umum: total biaya asuransi maksimal sekitar 10% pemasukan. Dengan pemasukan " + incomeLabel + ", budget-nya " + BUDGET[f.income] + ".");
+    const notYet = d.ef < 3 ? "Produk yang ada unsur investasinya. Selama emergency fund belum 3 bulan, fokus ke proteksi murni dulu."
+                 : (!d.hasDeps ? "Asuransi jiwa yang ada unsur investasinya. Belum ada kebutuhan yang mendesak." : "");
+    if (notYet) L.push("", "*Belum perlu sekarang*", notYet);
+
+    L.push("", "Semua angka di Report ini dari jawabanmu. Kalau ada yang kurang pas, bales aja di sini, nanti aku revisi.");
+    L.push("Kalau mau ngobrol 20 menit buat bahas ini, bilang aja. Nggak ada kewajiban beli apa pun.");
+    L.push("", CFG.OWNER_NAME + ", Failover Plan");
+    L.push("_Report edukasi dari jawabanmu, disusun dengan bantuan AI dan dicek langsung sama aku. Produk dan biayanya mengikuti ilustrasi resmi dan polis._");
+    return L.join("\n");
   }
 
   /* ---------- tampilan ---------- */
@@ -223,6 +331,15 @@
         </div>
       </section>
 
+      <section><h3>Draft Report buat WhatsApp</h3>
+        <p class="note" style="margin-bottom:10px">Udah disusun otomatis dari jawabannya. Baca dan edit dulu di kotak ini, lalu salin dan tempel di chat WhatsApp dia. Editan di kotak ini nggak disimpan.</p>
+        <textarea class="input report" id="d-report" aria-label="Draft Report">${esc(V.report && V.report.id === lead.id ? V.report.text : reportText(lead))}</textarea>
+        <div class="acts" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px">
+          <button type="button" class="btn" data-act="copy-report">Salin Report</button>
+          <button type="button" class="btn alt" data-act="reset-report">Susun ulang dari jawaban</button>
+        </div>
+      </section>
+
       <section><h3>Tiga lapis</h3><div class="layers">${layers}</div></section>
 
       <div class="two">
@@ -287,7 +404,7 @@
   });
   $root.addEventListener("click", e => {
     const s = e.target.closest("[data-sel]");
-    if (s){ V.sel = s.dataset.sel; V.open = true; V.confirmDel = false; V.savedAt = null; V.draft = null; render(); window.scrollTo(0, 0); return; }
+    if (s){ V.sel = s.dataset.sel; V.open = true; V.confirmDel = false; V.savedAt = null; V.draft = null; V.report = null; render(); window.scrollTo(0, 0); return; }
     const fl = e.target.closest("[data-filter]");
     if (fl){ V.filter = fl.dataset.filter; render(); return; }
     const a = e.target.closest("[data-act]"); if (!a || a.disabled) return;
@@ -296,6 +413,8 @@
       case "reload": load(); break;
       case "save": save(); break;
       case "copy": if (lead) copy(summary(lead)); break;
+      case "copy-report": { const t = document.getElementById("d-report"); if (t) copy(t.value, "Report disalin. Tempel di chat WhatsApp-nya, lalu ganti status jadi Report dikirim."); break; }
+      case "reset-report": V.report = null; render(); break;
       case "close": V.open = false; render(); break;
       case "delete": V.confirmDel = true; render(); break;
       case "delete-no": V.confirmDel = false; render(); break;
@@ -306,6 +425,7 @@
     }
   });
   $root.addEventListener("input", e => {
+    if (e.target.id === "d-report"){ V.report = {id:V.sel, text:e.target.value}; return; }
     if (e.target.id === "d-notes" || e.target.id === "d-status"){
       V.draft = {id:V.sel, status:document.getElementById("d-status").value, notes:document.getElementById("d-notes").value};
       return;

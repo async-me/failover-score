@@ -30,6 +30,7 @@ button, input, select, textarea{font:inherit; color:inherit}
 .field label{font-size:13px; font-weight:600; color:var(--ink-2)}
 .input, select.input, textarea.input{width:100%; min-height:44px; border:1.5px solid var(--rule); border-radius:9px; padding:8px 12px; background:var(--paper)}
 textarea.input{min-height:110px; resize:vertical; line-height:1.5}
+textarea.input.report{min-height:420px; font-size:14px; line-height:1.55; white-space:pre-wrap}
 .btn{display:inline-flex; justify-content:center; align-items:center; gap:8px; min-height:44px; padding:0 16px; border-radius:10px; border:0; background:var(--ink); color:var(--on-navy); font-weight:700; cursor:pointer}
 .btn.alt{background:var(--paper); color:var(--ink); border:1.5px solid var(--rule)}
 .btn.danger{background:var(--red-ink); color:#fff}
