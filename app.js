@@ -6,7 +6,7 @@
 (function () {
   "use strict";
 
-  const CFG = Object.assign({OWNER_NAME:"Bayu", HANDLE:"@failover.plan", REPORT_WORKDAYS:2, RUNBOOK_URL:"", WHATSAPP_NUMBER:""}, window.FS_CONFIG || {});
+  const CFG = Object.assign({OWNER_NAME:"Bayu", HANDLE:"@failover.plan", REPORT_WORKDAYS:2, RUNBOOK_URL:"", WHATSAPP_NUMBER:"", META_PIXEL_ID:""}, window.FS_CONFIG || {});
   const DEMO = !CFG.SUPABASE_URL || !CFG.SUPABASE_KEY;
   const SUPABASE_JS = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js";
   const {QUESTIONS, LAYERS, INCOME, COMMUTE, DEBT_TYPES, PREF} = window.FS;
@@ -14,6 +14,38 @@
   /* ?src=ig / ?src=tiktok / ?src=threads di link, buat tahu leads datang dari mana */
   const params = new URLSearchParams(location.search);
   const SOURCE = ((params.get("src") || params.get("utm_source") || "").toLowerCase().match(/^[a-z0-9_-]{1,40}$/) || [""])[0];
+
+  /* ---------- ngukur iklan ----------
+   * Penghitung pengunjung sendiri (tabel events di Supabase), plus Meta Pixel kalau META_PIXEL_ID diisi.
+   * Yang dikirim cuma nama langkahnya dan sumber link. Nama, jawaban, score, dan isi form nggak pernah ikut.
+   * Tiap langkah dihitung sekali per sesi browser.
+   */
+  const PIXEL_ID = /^\d{6,20}$/.test(String(CFG.META_PIXEL_ID || "").trim()) ? String(CFG.META_PIXEL_ID).trim() : "";
+  const PIXEL_EVENT = {quiz_done:["trackCustom", "QuizComplete"], lead:["track", "Lead"], wa_click:["track", "Contact"]};
+  function once(key){ try { if (sessionStorage.getItem("fs_" + key)) return false; sessionStorage.setItem("fs_" + key, "1"); } catch (e) { /* storage diblok: tetap kirim */ } return true; }
+  function track(kind){
+    if (!once(kind)) return;
+    const px = PIXEL_EVENT[kind];
+    if (px && PIXEL_ID && window.fbq) window.fbq(px[0], px[1]);
+    if (DEMO || kind === "lead") return;                     // lead udah kecatat di tabel leads
+    try {
+      fetch(CFG.SUPABASE_URL + "/rest/v1/rpc/track_event", {method:"POST",
+        headers:{"apikey":CFG.SUPABASE_KEY, "Content-Type":"application/json"},
+        body:JSON.stringify({p_kind:kind, p_src:SOURCE || null})}).catch(() => {});
+    } catch (e) { /* ngukur gagal nggak boleh ganggu kuis */ }
+  }
+  function loadPixel(){
+    if (!PIXEL_ID || window.fbq) return;
+    const n = window.fbq = function(){ n.callMethod ? n.callMethod.apply(n, arguments) : n.queue.push(arguments); };
+    if (!window._fbq) window._fbq = n;
+    n.push = n; n.loaded = true; n.version = "2.0"; n.queue = [];
+    n.disablePushState = true;                               // pindah layar di dalam kuis bukan kunjungan baru
+    const s = document.createElement("script"); s.async = true; s.src = "https://connect.facebook.net/en_US/fbevents.js";
+    document.head.appendChild(s);
+    n("set", "autoConfig", false, PIXEL_ID);                 // jangan baca tombol dan isi halaman otomatis
+    n("init", PIXEL_ID);
+    n("track", "PageView");
+  }
 
   const S = {screen:"intro1", ans:[null,null,null,null,null,null,null,null], form:FS.blankForm(), code:null, sending:false, error:null, hp:""};
   const NEEDS_SCORE = {calc:1, result:1, share:1, form:1, sent:1};
@@ -78,6 +110,7 @@
         <h1 class="h1 lg" style="padding-top:12px" tabindex="-1">Santai, ini bukan jualan</h1>
         <ul class="fixes">${pt("No sign-up.", "Nggak perlu nama, email, atau nomor HP.")}${pt("Jawabanmu nggak disimpan.", "Score-nya cuma muncul di layar kamu. Data baru dikirim kalau kamu sendiri yang minta Report.")}${pt("Kamu yang pegang kendali.", "Nggak akan ada yang ngehubungin kamu, kecuali kamu sendiri yang minta.")}</ul>
         <div style="display:flex;gap:12px;align-items:center"><div class="avatar">${initial}</div><p class="small" style="margin:0">Dibuat oleh <b style="color:var(--ink)">${esc(CFG.OWNER_NAME)}</b>, profesional di bidang teknologi dan konsultan asuransi berlisensi. Tool ini buat edukasi, bukan penawaran produk.</p></div>
+        <p class="tiny" id="measure-note" style="margin:0">Web ini ngitung jumlah pengunjung${PIXEL_ID ? " dan pakai Meta Pixel" : ""} buat ngukur iklan. Jawaban, score, dan isi form kamu nggak ikut dikirim ke situ.</p>
         <div class="foot"><div style="display:flex;justify-content:center">${dots(3)}</div><button type="button" class="btn" id="start" data-act="go:q0">Start check</button></div>
       </div></div>`;
     },
@@ -259,6 +292,7 @@
         code = data;
       }
       S.code = code; S.sending = false;
+      if (!S.hp) track("lead");
       go("sent", {replace:true});
     } catch (e) {
       console.error(e);
@@ -297,6 +331,8 @@
     if (screen === "form" && S.code) screen = "sent";        // form udah terkirim, jangan dobel
     if (screen === "form") FS.syncForm(S.ans, S.form);
     S.screen = screen;
+    if (screen === "q0") track("quiz_start");
+    if (screen === "result") track("quiz_done");
     if (!opt.fromHistory){
       const state = {screen};
       if (opt.replace || screen === "result" && history.state && history.state.screen === "calc") history.replaceState(state, "");
@@ -309,6 +345,7 @@
 
   /* ---------- event ---------- */
   $app.addEventListener("click", e => {
+    if (e.target.closest("#to-wa")){ track("wa_click"); return; }
     const el = e.target.closest("[data-act]"); if (!el) return;
     if (el.getAttribute("aria-disabled") === "true") return;
     const parts = el.dataset.act.split(":"), act = parts[0], a1 = parts[1], a2 = parts[2], f = S.form;
@@ -363,4 +400,6 @@
 
   history.replaceState({screen:"intro1"}, "");
   renderScreen(false);
+  loadPixel();
+  track("visit");
 })();

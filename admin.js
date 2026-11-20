@@ -13,7 +13,9 @@
 
   const $root = document.getElementById("root"), $toast = document.getElementById("toast");
   const $who = document.getElementById("who"), $whoEmail = document.getElementById("who-email");
-  const V = {view:"loading", leads:[], sel:null, filter:"all", q:"", open:false, confirmDel:false, busy:false, err:null, savedAt:null, draft:null};
+  const V = {view:"loading", leads:[], sel:null, filter:"all", q:"", open:false, confirmDel:false, busy:false, err:null, savedAt:null, draft:null,
+    recap:{days:7, rows:null, busy:false, err:null, open:recapPref()}};
+  function recapPref(){ try { return localStorage.getItem("fs_recap_open") !== "0"; } catch (e) { return true; } }
 
   /* ---------- helpers ---------- */
   function esc(s){ return String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
@@ -40,6 +42,8 @@
     return f;
   }
   const ansOf = lead => (lead.answers || []).map(a => (a == null ? null : +a));
+  const prioOf = lead => FS.priority(ansOf(lead), formOf(lead));
+  function prioPill(p){ return p.level === "high" ? '<span class="pill prio-high">Prioritas</span>' : p.level === "mid" ? '<span class="pill prio-mid">Potensial</span>' : ""; }
 
   /* ---------- data ---------- */
   if (!CFG.SUPABASE_URL || !CFG.SUPABASE_KEY || !window.supabase){
@@ -55,7 +59,7 @@
     $who.hidden = false; $whoEmail.textContent = user.email || "";
     const {data:ok, error} = await sb.rpc("is_admin");
     if (error || !ok){ V.view = "denied"; render(); return; }
-    V.view = "desk"; await load();
+    V.view = "desk"; await Promise.all([load(), loadRecap()]);
   }
   async function load(){
     V.busy = true; render();
@@ -64,6 +68,14 @@
     if (error){ V.err = "Gagal ambil data: " + error.message; render(); return; }
     V.err = null; V.leads = data || [];
     if (V.sel && !V.leads.some(l => l.id === V.sel)) V.sel = null;
+    render();
+  }
+  async function loadRecap(){
+    V.recap.busy = true; render();
+    const {data, error} = await sb.rpc("funnel_summary", {p_days:V.recap.days});
+    V.recap.busy = false;
+    if (error){ V.recap.err = "Gagal ambil rekap: " + error.message; V.recap.rows = null; }
+    else { V.recap.err = null; V.recap.rows = data || []; }
     render();
   }
   async function save(){
@@ -92,6 +104,8 @@
     out.push("Nama: " + lead.name + (lead.age ? ", " + lead.age : ""));
     out.push("Masuk: " + when(lead.created_at) + (lead.source ? " (sumber: " + lead.source + ")" : ""));
     out.push("Score: " + sc + "/100 (" + FS.status(sc).label + ")");
+    const pr = prioOf(lead);
+    out.push("Prioritas: " + pr.label + (pr.why.length ? " (" + pr.why.join("; ") + ")" : ""));
     LAYERS.forEach(x => out.push("- " + x.name + ": " + Math.round(L[x.key] * 100) + "% (" + FS.layerStatus(L[x.key]).label + ")"));
     out.push("", "Jawaban kuis:");
     QUESTIONS.forEach((q, i) => out.push((i + 1) + ". " + q.short + ": " + (ans[i] == null ? "–" : q.opts[ans[i]][0])));
@@ -258,20 +272,22 @@
       return;
     }
     if (V.view === "denied"){
-      $root.innerHTML = `<div class="card center"><h1>Akun ini belum jadi admin</h1><p>Akunnya udah ada, tinggal dijadiin admin. Kirim email akun ini ke Claude, atau jalankan langkah 6 di <code>setup.sql</code>. Habis itu muat ulang halaman ini.</p><button class="btn alt" type="button" data-act="logout">Keluar</button></div>`;
+      $root.innerHTML = `<div class="card center"><h1>Akun ini belum jadi admin</h1><p>Akunnya udah ada, tinggal dijadiin admin. Kirim email akun ini ke Claude, atau jalankan langkah 7 di <code>setup.sql</code>. Habis itu muat ulang halaman ini.</p><button class="btn alt" type="button" data-act="logout">Keluar</button></div>`;
       return;
     }
-    const counts = {all:V.leads.length, late:V.leads.filter(isLate).length};
+    const prio = new Map(V.leads.map(l => [l.id, prioOf(l)]));
+    const counts = {all:V.leads.length, late:V.leads.filter(isLate).length, prio:V.leads.filter(l => prio.get(l.id).level === "high").length};
     STATUS.forEach(([k]) => { counts[k] = V.leads.filter(l => l.status === k).length; });
     const q = V.q.trim().toLowerCase();
-    const shown = V.leads.filter(l => (V.filter === "all" || (V.filter === "late" ? isLate(l) : l.status === V.filter)) &&
+    const inFilter = l => V.filter === "all" || (V.filter === "late" ? isLate(l) : V.filter === "prio" ? prio.get(l.id).level === "high" : l.status === V.filter);
+    const shown = V.leads.filter(l => inFilter(l) &&
       (!q || l.code.toLowerCase().includes(q) || (l.name || "").toLowerCase().includes(q)));
     const fchip = (k, lbl) => `<button type="button" class="fchip" aria-pressed="${V.filter === k}" data-filter="${k}">${lbl}<span>${counts[k] || 0}</span></button>`;
     const items = shown.map(l => {
       const sc = l.score == null ? FS.score(ansOf(l)) : l.score;
       const pill = isLate(l) ? '<span class="pill late">Lewat janji</span>' : l.status === "baru" ? '<span class="pill new">Baru</span>' : l.status === "closing" ? '<span class="pill won">Closing</span>' : `<span class="pill">${esc(statusLabel(l.status))}</span>`;
       return `<button type="button" class="item" data-sel="${esc(l.id)}" aria-current="${V.sel === l.id}"><span class="nm">${esc(l.name)}${l.age ? ", " + esc(l.age) : ""}</span><span class="sc">${sc == null ? "–" : sc}</span>
-        <span class="meta"><b>${esc(l.code)}</b><span>${rel(l.created_at)}</span>${l.source ? `<span>${esc(l.source)}</span>` : ""}${pill}</span></button>`;
+        <span class="meta"><b>${esc(l.code)}</b><span>${rel(l.created_at)}</span>${l.source ? `<span>${esc(l.source)}</span>` : ""}${prioPill(prio.get(l.id))}${pill}</span></button>`;
     }).join("");
     const lead = V.leads.find(l => l.id === V.sel);
     $root.innerHTML = `
@@ -279,12 +295,36 @@
         <input class="input search" id="q" type="search" placeholder="Cari kode atau nama" value="${esc(V.q)}" aria-label="Cari kode atau nama">
         <button type="button" class="btn alt" data-act="reload" ${V.busy ? "disabled" : ""}>${V.busy ? "Memuat..." : "Muat ulang"}</button>
       </div>
-      <div class="filters">${fchip("all", "Semua")}${counts.late ? fchip("late", "Lewat janji") : ""}${STATUS.map(([k, lbl]) => fchip(k, lbl)).join("")}</div>
+      ${recapHtml()}
+      <div class="filters">${fchip("all", "Semua")}${fchip("prio", "Prioritas")}${counts.late ? fchip("late", "Lewat janji") : ""}${STATUS.map(([k, lbl]) => fchip(k, lbl)).join("")}</div>
       ${V.err ? `<p class="err" role="alert" style="margin-bottom:14px">${esc(V.err)}</p>` : ""}
       <div class="desk${V.open ? " open" : ""}">
         <div class="card list">${items || `<div class="empty">${V.leads.length ? "Nggak ada lead yang cocok sama filter ini." : "Belum ada lead yang masuk. Coba isi kuisnya sendiri dulu buat ngetes."}</div>`}</div>
         <div class="card detail">${lead ? detail(lead) : '<p class="placeholder">Pilih salah satu lead di kiri buat lihat detailnya.</p>'}</div>
       </div>`;
+  }
+
+  /* ---------- rekap per sumber ---------- */
+  const RECAP_COLS = [["visits", "Pengunjung"], ["quiz_start", "Mulai kuis", "opt"], ["quiz_done", "Kuis selesai"], ["leads", "Minta Report"], ["wa_click", "Klik WA"]];
+  function recapHtml(){
+    const R = V.recap;
+    const head = `<div class="recap-head"><h2>Rekap per sumber</h2><div class="grp">
+        ${R.open ? [7, 30].map(n => `<button type="button" class="fchip" aria-pressed="${R.days === n}" data-recap-days="${n}">${n} hari</button>`).join("") : ""}
+        <button type="button" class="lnk" data-act="recap-toggle" aria-expanded="${R.open}">${R.open ? "Sembunyikan" : "Lihat"}</button></div></div>`;
+    if (!R.open) return `<section class="card recap">${head}</section>`;
+    let body;
+    if (R.err) body = `<p class="err" role="alert" style="margin-top:12px">${esc(R.err)}</p>`;
+    else if (!R.rows) body = `<p class="note" style="margin-top:12px">Memuat rekap...</p>`;
+    else if (!R.rows.length) body = `<p class="note" style="margin-top:12px">Belum ada pengunjung di ${R.days} hari terakhir.</p>`;
+    else {
+      const tot = {}; RECAP_COLS.forEach(([k]) => { tot[k] = R.rows.reduce((s, r) => s + (+r[k] || 0), 0); });
+      const pct = (a, b) => b ? Math.round(a / b * 100) + "%" : "–";
+      const row = (name, r, cls) => `<tr${cls ? ` class="${cls}"` : ""}><td>${name}</td>${RECAP_COLS.map(([k, , o]) => `<td class="r${o ? " " + o : ""}">${+r[k] || 0}</td>`).join("")}<td class="r opt">${pct(+r.wa_click || 0, +r.visits || 0)}</td></tr>`;
+      body = `<div class="tablewrap"><table><thead><tr><th>Sumber</th>${RECAP_COLS.map(([, l, o]) => `<th class="r${o ? " " + o : ""}">${l}</th>`).join("")}<th class="r opt">Jadi chat</th></tr></thead>
+        <tbody>${R.rows.map(r => row(r.source ? esc(r.source) : "Tanpa link sumber", r)).join("")}${R.rows.length > 1 ? row("Total", tot, "total") : ""}</tbody></table></div>
+        <p class="note" style="margin-top:10px">Tiap langkah dihitung sekali per sesi browser, mulai 20 November 2026. Minta Report diambil dari lead yang masuk. Biaya per chat WA: total biaya iklan di Ads Manager dibagi Klik WA dari sumber <code>ads-</code>.</p>`;
+    }
+    return `<section class="card recap${R.busy ? " busy" : ""}">${head}${body}</section>`;
   }
 
   function detail(lead){
@@ -320,6 +360,7 @@
           <p class="sub">Janji Report: ${dueDate.toLocaleDateString("id-ID", {weekday:"long", day:"numeric", month:"long"})}${isLate(lead) ? ' <span class="pill late">Lewat janji</span>' : ""}</p></div>
         <div><div class="bigscore">${sc == null ? "–" : sc}<small>/100</small></div><span>${sc == null ? "" : FS.status(sc).label}</span></div>
       </div>
+      ${prioBox(prioOf(lead))}
 
       <section><h3>Status dan catatan</h3>
         <div class="manage">
@@ -375,6 +416,11 @@
       </section>`;
   }
 
+  function prioBox(p){
+    return `<div class="prio ${p.level}"><b>${p.label}</b>${p.why.length ? `<ul>${p.why.map(w => `<li>${esc(FS.cap(w))}</li>`).join("")}</ul>` : '<p>Belum ada yang bikin dia jadi prioritas. Tetap kirim Report-nya sesuai janji.</p>'}
+      <p>Patokan kasar buat urutan chat, dari pemasukan, tanggungan, proteksi yang belum ada, anak kecil, dan KPR.</p></div>`;
+  }
+
   /* ---------- event ---------- */
   $root.addEventListener("submit", async e => {
     if (e.target.id !== "login" && e.target.id !== "signup") return;
@@ -407,10 +453,16 @@
     if (s){ V.sel = s.dataset.sel; V.open = true; V.confirmDel = false; V.savedAt = null; V.draft = null; V.report = null; render(); window.scrollTo(0, 0); return; }
     const fl = e.target.closest("[data-filter]");
     if (fl){ V.filter = fl.dataset.filter; render(); return; }
+    const rd = e.target.closest("[data-recap-days]");
+    if (rd){ if (+rd.dataset.recapDays !== V.recap.days){ V.recap.days = +rd.dataset.recapDays; loadRecap(); } return; }
     const a = e.target.closest("[data-act]"); if (!a || a.disabled) return;
     const lead = V.leads.find(l => l.id === V.sel);
     switch (a.dataset.act){
-      case "reload": load(); break;
+      case "reload": load(); if (V.recap.open) loadRecap(); break;
+      case "recap-toggle":
+        V.recap.open = !V.recap.open;
+        try { localStorage.setItem("fs_recap_open", V.recap.open ? "1" : "0"); } catch (err) { /* nggak masalah */ }
+        render(); if (V.recap.open && !V.recap.rows) loadRecap(); break;
       case "save": save(); break;
       case "copy": if (lead) copy(summary(lead)); break;
       case "copy-report": { const t = document.getElementById("d-report"); if (t) copy(t.value, "Report disalin. Tempel di chat WhatsApp-nya, lalu ganti status jadi Report dikirim."); break; }

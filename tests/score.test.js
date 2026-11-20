@@ -53,4 +53,16 @@ assert.equal(FS.score([2,0,3,0,2,2,0,0]), 100, "skor maksimal 100");
 assert.equal(FS.derive(SCENARIOS[2].form).remaining, 384000000, "sisa KPR");
 passed += 5;
 
+// Prioritas lead di Lead Desk
+const prio = sc => FS.priority(sc.ans, sc.form);
+assert.equal(prio(SCENARIOS[0]).label, "Edukasi dulu", "prioritas skenario 1");
+assert.equal(prio(SCENARIOS[1]).label, "Edukasi dulu", "prioritas skenario 2");
+assert.equal(prio(SCENARIOS[2]).label, "Prioritas", "prioritas skenario 3");
+assert.equal(prio(SCENARIOS[2]).pts, 5, "poin prioritas skenario 3");
+assert.deepEqual(prio(SCENARIOS[2]).why, ["pemasukan Rp15–25 juta", "ada tanggungan, asuransi jiwa masih dari kantor", "anak paling kecil umur 2", "ada KPR"], "alasan prioritas skenario 3");
+const rich = {ans:[1,2,1,0,0,0,1,0], form:form({deps:{pasangan:true, anak:true, orangtua:false, saudara:false, none:false}, kids:1, youngest:0, income:"gt25", expense:15000000})};
+assert.equal(prio(rich).pts, 7, "keluarga muda pemasukan tinggi tanpa proteksi");
+assert.ok(prio(rich).why.includes("punya bayi"), "bayi di bawah 1 tahun");
+passed += 7;
+
 console.log("\nSemua " + passed + " cek lulus.");

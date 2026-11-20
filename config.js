@@ -21,5 +21,9 @@ window.FS_CONFIG = {
   REPORT_WORKDAYS: 2,
 
   // Opsional: link template Family Runbook (Notion atau Google Docs). Kosongin kalau belum ada.
-  RUNBOOK_URL: ""
+  RUNBOOK_URL: "",
+
+  // Meta Pixel: Events Manager > dataset Failover Score > Settings > Dataset ID (angka aja).
+  // Kosong = Pixel nggak dipasang. Penghitung pengunjung sendiri tetap jalan.
+  META_PIXEL_ID: ""
 };

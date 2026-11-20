@@ -9,7 +9,8 @@
 --   2. tabel admins       siapa yang boleh buka Lead Desk
 --   3. submit_lead()      satu-satunya pintu buat pengunjung ngirim data
 --   4. aturan akses       pengunjung cuma bisa ngirim, nggak bisa baca apa pun
---   5. purge_old_leads()  hapus data lebih dari 1 tahun (sesuai janji di form)
+--   5. tabel events       penghitung pengunjung per sumber, tanpa data pribadi
+--   6. purge_old_leads()  hapus data lebih dari 1 tahun (sesuai janji di form)
 -- =====================================================================
 
 
@@ -169,7 +170,74 @@ grant execute on function public.submit_lead(jsonb) to anon, authenticated;
 grant execute on function public.is_admin()         to authenticated;
 
 
--- 5. Hapus data lebih dari 1 tahun -------------------------------------------
+-- 5. Penghitung pengunjung -----------------------------------------------------
+-- Cuma nyatet langkah apa dan dari link mana. Nggak ada nama, jawaban, score, IP, atau ID pengunjung.
+-- Dedup sekali per sesi browser dilakukan di app.js.
+create table if not exists public.events (
+  id          bigint generated always as identity primary key,
+  created_at  timestamptz not null default now(),
+  kind        text not null check (kind in ('visit','quiz_start','quiz_done','wa_click')),
+  source      text check (source ~ '^[a-z0-9_-]{1,40}$')
+);
+create index if not exists events_created_at_idx on public.events (created_at desc);
+
+create or replace function public.track_event(p_kind text, p_src text default null)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if p_kind is null or p_kind not in ('visit','quiz_start','quiz_done','wa_click') then
+    return;
+  end if;
+  insert into public.events (kind, source)
+  values (p_kind, case when lower(p_src) ~ '^[a-z0-9_-]{1,40}$' then lower(p_src) end);
+end;
+$$;
+
+-- Rekap per sumber buat Lead Desk. "leads" diambil dari tabel leads, sisanya dari events.
+create or replace function public.funnel_summary(p_days int default 7)
+returns table (source text, visits bigint, quiz_start bigint, quiz_done bigint, leads bigint, wa_click bigint)
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+declare
+  v_since timestamptz := now() - make_interval(days => greatest(1, least(coalesce(p_days, 7), 400)));
+begin
+  if not public.is_admin() then
+    raise exception 'not_admin';
+  end if;
+  return query
+    with e as (
+      select coalesce(ev.source, '') as s, ev.kind from public.events ev where ev.created_at >= v_since
+    ), l as (
+      select coalesce(ld.source, '') as s from public.leads ld where ld.created_at >= v_since
+    ), srcs as (
+      select e.s from e union select l.s from l
+    )
+    select srcs.s,
+      (select count(*) from e where e.s = srcs.s and e.kind = 'visit'),
+      (select count(*) from e where e.s = srcs.s and e.kind = 'quiz_start'),
+      (select count(*) from e where e.s = srcs.s and e.kind = 'quiz_done'),
+      (select count(*) from l where l.s = srcs.s),
+      (select count(*) from e where e.s = srcs.s and e.kind = 'wa_click')
+    from srcs
+    order by 2 desc, 5 desc, 1;
+end;
+$$;
+
+alter table public.events enable row level security;
+revoke all on public.events from anon, authenticated;
+revoke all on function public.track_event(text, text) from public, anon, authenticated;
+revoke all on function public.funnel_summary(int)     from public, anon, authenticated;
+grant execute on function public.track_event(text, text) to anon, authenticated;
+grant execute on function public.funnel_summary(int)     to authenticated;
+
+
+-- 6. Hapus data lebih dari 1 tahun -------------------------------------------
 create or replace function public.purge_old_leads()
 returns integer
 language sql
@@ -178,6 +246,8 @@ set search_path = public
 as $$
   with gone as (
     delete from public.leads where created_at < now() - interval '1 year' returning 1
+  ), old_events as (
+    delete from public.events where created_at < now() - interval '1 year' returning 1
   )
   select count(*)::int from gone;
 $$;
@@ -189,6 +259,6 @@ revoke all on function public.purge_old_leads() from public, anon, authenticated
 --   select cron.schedule('hapus-leads-lama', '0 3 1 * *', 'select public.purge_old_leads()');
 
 
--- 6. Jadikan akunmu admin ------------------------------------------------
+-- 7. Jadikan akunmu admin ------------------------------------------------
 -- Jalankan SETELAH bikin akun di Authentication > Users. Ganti emailnya, lalu Run baris ini aja:
 --   insert into public.admins (user_id) select id from auth.users where email = 'email-kamu@gmail.com' on conflict do nothing;

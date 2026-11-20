@@ -168,10 +168,32 @@
     return {debts, debtMonthly, remaining, expense, savings, outflow, ef, deps:depList, careDeps, hasDeps, years, yearsWhy, youngLabel, base, need, kpr};
   }
 
+  /* ---------- prioritas lead di Lead Desk ----------
+   * Patokan kasar buat milih siapa yang di-chat duluan, dari kecocokan sama target (keluarga muda, pemasukan lumayan)
+   * dan seberapa besar kebutuhannya. Cuma buat urutan kerja, bukan penilaian orangnya.
+   * Poin: pemasukan 0–3, ada tanggungan tapi belum punya asuransi jiwa sendiri 1–2,
+   *       belum ada asuransi kesehatan selain BPJS 1, anak paling kecil umur 5 ke bawah 1, ada KPR 1.
+   * 5 poin ke atas = Prioritas, 3–4 = Potensial, di bawah 3 = Edukasi dulu.
+   */
+  const INCOME_PTS = {"lt10":0, "10-15":1, "15-25":2, "gt25":3};
+  function priority(ans, f){
+    const d = derive(f), deps = f.deps || noDeps(false), why = [];
+    let p = 0;
+    const ip = INCOME_PTS[f.income] || 0;
+    if (ip){ p += ip; why.push("pemasukan " + INCOME.find(x => x[0] === f.income)[1].replace(/^Di /, "di ")); }
+    if (d.hasDeps && ans[5] === 0){ p += 2; why.push("ada tanggungan, belum punya asuransi jiwa"); }
+    else if (d.hasDeps && ans[5] === 1){ p += 1; why.push("ada tanggungan, asuransi jiwa masih dari kantor"); }
+    if (ans[4] === 0){ p += 1; why.push("belum ada asuransi kesehatan selain BPJS"); }
+    if (!deps.none && deps.anak && f.youngest <= 5){ p += 1; why.push(f.youngest < 1 ? "punya bayi" : "anak paling kecil umur " + f.youngest); }
+    if (d.kpr){ p += 1; why.push("ada KPR"); }
+    const level = p >= 5 ? "high" : p >= 3 ? "mid" : "low";
+    return {level, label:{high:"Prioritas", mid:"Potensial", low:"Edukasi dulu"}[level], pts:p, why};
+  }
+
   const FS = {QUESTIONS, LAYERS, INCOME, BUDGET, COMMUTE, DEBT_TYPES, PREF,
     mkDebt, blankDebts, noDeps, blankForm, syncForm,
     num, rp, approx, joinID, cap, efText,
-    pts, complete, score, layerVals, layerStatus, status, weak, weakCopy, safeList, firstStep, derive};
+    pts, complete, score, layerVals, layerStatus, status, weak, weakCopy, safeList, firstStep, derive, priority};
 
   if (typeof module !== "undefined" && module.exports) module.exports = FS;
   else root.FS = FS;
