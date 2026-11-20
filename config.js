@@ -25,5 +25,5 @@ window.FS_CONFIG = {
 
   // Meta Pixel: Events Manager > dataset Failover Score > Settings > Dataset ID (angka aja).
   // Kosong = Pixel nggak dipasang. Penghitung pengunjung sendiri tetap jalan.
-  META_PIXEL_ID: ""
+  META_PIXEL_ID: "1651732536619622"
 };
