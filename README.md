@@ -2,8 +2,9 @@
 
 Kuis 2 menit buat ngecek backup plan keuangan keluarga, plus Lead Desk buat ngurus yang minta Report.
 
-- **Web kuis:** https://async-me.github.io/failover-score/
-- **Lead Desk:** https://async-me.github.io/failover-score/admin.html
+- **Web kuis:** https://failoverplan.id/
+- **Lead Desk:** https://failoverplan.id/admin.html
+- **Domain:** failoverplan.id, dibeli di Hostinger. DNS-nya 4 record A `@` ke IP GitHub Pages (185.199.108.153 sampai 185.199.111.153) dan CNAME `www` ke `async-me.github.io`. File `CNAME` di repo ini yang nyambungin domainnya ke GitHub Pages, jangan dihapus. Alamat lama `async-me.github.io/failover-score` otomatis diarahin ke sini.
 - **Database:** Supabase, project `failover-score` (ref `dvdwygekvxvdyhlykagp`) di organization Onward Org, region Singapore, plan gratis.
 - **Hosting:** GitHub Pages dari repo ini. Tiap ada push ke branch `gh-pages`, web ke-update sendiri dalam 1–2 menit.
 
@@ -20,6 +21,7 @@ Stack: HTML, CSS, dan JavaScript biasa (tanpa build), Supabase buat database dan
 | `setup.sql` | Setup database (udah dijalankan di project Supabase) |
 | `tests/score.test.js` | Tes logika skor pakai 3 skenario simulator: `node tests/score.test.js` |
 | `.nojekyll` | Biar GitHub Pages nyajiin file apa adanya |
+| `CNAME` | Domain failoverplan.id buat GitHub Pages |
 
 ## Bikin akun admin (sekali aja)
 
@@ -37,10 +39,10 @@ Pakai link yang beda buat tiap tempat, biar ketahuan leads datang dari mana:
 
 | Dipasang di | Link |
 | --- | --- |
-| Bio Instagram | `https://async-me.github.io/failover-score/?src=ig` |
-| Bio Threads | `https://async-me.github.io/failover-score/?src=threads` |
-| Bio TikTok (setelah 1.000 follower atau akun bisnis) | `https://async-me.github.io/failover-score/?src=tiktok` |
-| QR code di event bareng RS | `https://async-me.github.io/failover-score/?src=event-padel` |
+| Bio Instagram | `https://failoverplan.id/?src=ig` |
+| Bio Threads | `https://failoverplan.id/?src=threads` |
+| Bio TikTok (setelah 1.000 follower atau akun bisnis) | `https://failoverplan.id/?src=tiktok` |
+| QR code di event bareng RS | `https://failoverplan.id/?src=event-padel` |
 
 Sumbernya cuma boleh huruf kecil, angka, `-`, atau `_`.
 
