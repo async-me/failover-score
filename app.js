@@ -58,21 +58,29 @@
   function fmt(d, o){ return d.toLocaleDateString("id-ID", o); }
   const reduceMotion = () => window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-  /* Kartu Report di hasil: muncul tepat setelah tiga lapis, sebelum detail. Isinya cuma yang beneran ada di Report. */
-  function reportCard(){
+  /* Sheet "Report lengkap" yang nempel di bawah layar hasil.
+   * Layar pertama: kebuka penuh (judul, isi Report, tombol). Begitu di-scroll: mengecil jadi judul + tombol.
+   * Di HP pendek yang bakal nutupin tiga lapis, langsung mulai dari versi kecil. */
+  function reportSheet(){
     const deps = S.ans[1] !== 0;
-    const items = [
-      deps ? `Coverage asuransi jiwa yang pas buat keluargamu, lengkap sama hitungannya` : `Asuransi mana yang perlu duluan, dan mana yang belum perlu`,
-      `Urutan langkah, mulai dari yang paling murah`,
-      `Budget asuransi yang masuk akal buat pemasukanmu`
-    ];
-    return `<section class="report-card" aria-labelledby="rc-title">
-      <h2 class="h2" id="rc-title">Report lengkap kamu, gratis</h2>
-      <ul class="perks">${items.map(t => `<li>${CHECK("#5fd8cc", 16)}<span>${t}</span></li>`).join("")}</ul>
-      ${deps ? `<div class="peek" aria-hidden="true"><span>Coverage yang pas buat kamu</span><b>Rp 1.250.000.000</b></div>` : ""}
+    return `<section class="sheet open" id="report-sheet" aria-labelledby="rs-title">
+      <span class="grab" aria-hidden="true"></span>
+      <h2 id="rs-title">Report lengkap kamu, gratis</h2>
+      <div class="more"><p>${deps ? "Angka coverage asuransi jiwa, urutan langkah, dan budget" : "Asuransi mana yang perlu duluan, urutan langkah, dan budget"} yang pas buat kamu.</p></div>
       <button type="button" class="btn" id="to-form" data-act="go:form">Minta Report gratis</button>
-      <p class="rc-note">Tinggal 8 pertanyaan lagi, jawabanmu tadi udah kebawa. Dikirim lewat WhatsApp maksimal ${+CFG.REPORT_WORKDAYS || 2} hari kerja, tanpa telepon.</p>
+      <div class="more"><p class="note">Tinggal 8 pertanyaan lagi, jawabanmu tadi udah kebawa. Dikirim lewat WhatsApp maksimal ${+CFG.REPORT_WORKDAYS || 2} hari kerja, tanpa telepon.</p></div>
     </section>`;
+  }
+  let sheetOff = null;
+  function setupSheet(){
+    if (sheetOff){ sheetOff(); sheetOff = null; }
+    const sh = document.getElementById("report-sheet"); if (!sh) return;
+    const layers = $app.querySelector(".layers");
+    const canOpen = window.scrollY < 24 && (!layers || layers.getBoundingClientRect().bottom + 16 <= window.innerHeight - sh.offsetHeight);
+    const set = () => { const open = canOpen && window.scrollY < 24; sh.classList.toggle("open", open); sh.classList.toggle("mini", !open); };
+    set();
+    window.addEventListener("scroll", set, {passive:true});
+    sheetOff = () => window.removeEventListener("scroll", set);
   }
 
   const CHECK = (c, s) => `<svg width="${s || 14}" height="${s || 14}" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>`;
@@ -167,21 +175,20 @@
                  : "Masih banyak ruang buat diperkuat, dan itu wajar. Mulai dari 1 langkah paling gampang di bawah.";
       const fixes = w.map((x, r) => { const c = FS.weakCopy(S.ans, x.i), pr = r < 2 && x.m > 4;
         return `<li><span class="d${pr ? " p" : ""}"></span><div><b>${c[0]}</b><p>${c[1]}</p></div><span class="when${pr ? " p" : ""}">${pr ? "Prioritas" : "Nanti"}</span></li>`; }).join("");
-      return `<div class="scr"><div class="pad">
+      return `<div class="scr"><div class="pad has-sheet">
         <div class="bar">${WM}<span class="small">Score kamu</span></div>
         <div class="stack" style="gap:12px">
           <div class="score-head"><h1 class="score-num" tabindex="-1" style="margin:0">${sc}<small>/100</small></h1><span class="status${st.low ? " low" : ""}" style="margin-bottom:6px">${st.label}</span></div>
           <p class="lead" style="font-size:17px">${lead}</p>
         </div>
         ${layersHtml(FS.layerVals(S.ans), {status:true, animate:true})}
-        ${reportCard()}
         ${w.length ? `<div class="stack" style="gap:4px"><h2 class="h2">Yang bisa diperkuat</h2><ul class="fixes">${fixes}</ul></div>` : ""}
         ${sf.length ? `<div class="stack" style="gap:10px"><h2 class="h2">Udah aman</h2><ul class="safe">${sf.map(s => `<li>${CHECK("#0b7a72")}${s}</li>`).join("")}</ul></div>` : ""}
         <div class="firststep"><b>Langkah pertama yang paling gampang</b><p>${FS.firstStep(S.ans)}</p></div>
         <p class="tiny" style="margin:0">Score ini alat edukasi dari jawabanmu sendiri, bukan penilaian risiko resmi atau rekomendasi produk.</p>
-        <div class="cta-band" id="cta-band"><h2 class="h2" style="color:var(--on-navy)">Report lengkap kamu, gratis</h2><p>${S.ans[1] !== 0 ? "Angka coverage, urutan langkah, dan budget" : "Urutan langkah dan budget"} yang pas buat kamu. Dikirim lewat WhatsApp maksimal ${+CFG.REPORT_WORKDAYS || 2} hari kerja, tanpa telepon.</p><button type="button" class="btn" id="to-form-2" data-act="go:form">Minta Report gratis</button>
-          <button type="button" class="tbtn on-navy-link" id="to-share" data-act="go:share">Atau share score kamu ke Story</button></div>
-      </div></div>`;
+        <button type="button" class="tbtn share-link" id="to-share" data-act="go:share">Share score kamu ke Story</button>
+      </div></div>
+      ${reportSheet()}`;
     },
     share(){
       const sc = FS.score(S.ans), st = FS.status(sc);
@@ -335,6 +342,7 @@
       window.scrollTo(0, 0);
       const h = $app.querySelector("h1[tabindex]"); if (h) h.focus({preventScroll:true});
     }
+    setupSheet();
     const bars = $app.querySelectorAll(".ly-bar i[data-w]");
     if (bars.length && bars[0].style.width === "0%"){
       bars.forEach((b, i) => setTimeout(() => { b.style.width = b.dataset.w + "%"; }, reduceMotion() ? 0 : 120 + i * (S.screen === "calc" ? 450 : 160)));
