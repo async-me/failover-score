@@ -58,6 +58,23 @@
   function fmt(d, o){ return d.toLocaleDateString("id-ID", o); }
   const reduceMotion = () => window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
+  /* Kartu Report di hasil: muncul tepat setelah tiga lapis, sebelum detail. Isinya cuma yang beneran ada di Report. */
+  function reportCard(){
+    const deps = S.ans[1] !== 0;
+    const items = [
+      deps ? `Coverage asuransi jiwa yang pas buat keluargamu, lengkap sama hitungannya` : `Asuransi mana yang perlu duluan, dan mana yang belum perlu`,
+      `Urutan langkah, mulai dari yang paling murah`,
+      `Budget asuransi yang masuk akal buat pemasukanmu`
+    ];
+    return `<section class="report-card" aria-labelledby="rc-title">
+      <h2 class="h2" id="rc-title">Report lengkap kamu, gratis</h2>
+      <ul class="perks">${items.map(t => `<li>${CHECK("#5fd8cc", 16)}<span>${t}</span></li>`).join("")}</ul>
+      ${deps ? `<div class="peek" aria-hidden="true"><span>Coverage yang pas buat kamu</span><b>Rp 1.250.000.000</b></div>` : ""}
+      <button type="button" class="btn" id="to-form" data-act="go:form">Minta Report gratis</button>
+      <p class="rc-note">Tinggal 8 pertanyaan lagi, jawabanmu tadi udah kebawa. Dikirim lewat WhatsApp maksimal ${+CFG.REPORT_WORKDAYS || 2} hari kerja, tanpa telepon.</p>
+    </section>`;
+  }
+
   const CHECK = (c, s) => `<svg width="${s || 14}" height="${s || 14}" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>`;
   const CHEV = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>';
   const WM = '<span class="wm">Failover <span>Plan</span></span>';
@@ -157,12 +174,13 @@
           <p class="lead" style="font-size:17px">${lead}</p>
         </div>
         ${layersHtml(FS.layerVals(S.ans), {status:true, animate:true})}
+        ${reportCard()}
         ${w.length ? `<div class="stack" style="gap:4px"><h2 class="h2">Yang bisa diperkuat</h2><ul class="fixes">${fixes}</ul></div>` : ""}
         ${sf.length ? `<div class="stack" style="gap:10px"><h2 class="h2">Udah aman</h2><ul class="safe">${sf.map(s => `<li>${CHECK("#0b7a72")}${s}</li>`).join("")}</ul></div>` : ""}
         <div class="firststep"><b>Langkah pertama yang paling gampang</b><p>${FS.firstStep(S.ans)}</p></div>
-        <button type="button" class="btn alt" id="to-share" data-act="go:share">Share to Story</button>
         <p class="tiny" style="margin:0">Score ini alat edukasi dari jawabanmu sendiri, bukan penilaian risiko resmi atau rekomendasi produk.</p>
-        <div class="cta-band"><h2 class="h2" style="color:var(--on-navy)">Mau Report lengkap? Gratis.</h2><p>Jawabanmu tadi kebawa otomatis, tinggal tambah 8 pertanyaan singkat. Report tertulisnya aku kirim lewat WhatsApp. No call, kecuali kamu yang minta.</p><button type="button" class="btn" id="to-form" data-act="go:form">Get my Report</button></div>
+        <div class="cta-band" id="cta-band"><h2 class="h2" style="color:var(--on-navy)">Report lengkap kamu, gratis</h2><p>${S.ans[1] !== 0 ? "Angka coverage, urutan langkah, dan budget" : "Urutan langkah dan budget"} yang pas buat kamu. Dikirim lewat WhatsApp maksimal ${+CFG.REPORT_WORKDAYS || 2} hari kerja, tanpa telepon.</p><button type="button" class="btn" id="to-form-2" data-act="go:form">Minta Report gratis</button>
+          <button type="button" class="tbtn on-navy-link" id="to-share" data-act="go:share">Atau share score kamu ke Story</button></div>
       </div></div>`;
     },
     share(){
