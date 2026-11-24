@@ -114,7 +114,7 @@
           </div>
           <div class="foot">
             <button type="button" class="btn go" id="start" data-act="go:q0">Mulai cek</button>
-            <p class="tiny fine" id="measure-note">Jawaban nggak disimpan, cuma kunjungan yang dihitung${PIXEL_ID ? " (termasuk Meta Pixel)" : ""}.<br>Dibuat oleh ${esc(CFG.OWNER_NAME)}, konsultan asuransi berlisensi.</p>
+            <p class="tiny fine" id="measure-note">Jawaban nggak disimpan, cuma kunjungan yang dihitung.<br>Dibuat oleh ${esc(CFG.OWNER_NAME)}, konsultan asuransi berlisensi.</p>
           </div>
         </div>
       </div>`;
