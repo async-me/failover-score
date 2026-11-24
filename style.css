@@ -45,9 +45,6 @@ body{margin:0; background:var(--ground); color:var(--ink); font-family:var(--fon
 .tbtn{background:none; border:0; font-size:15px; font-weight:700; color:var(--ink); padding:8px 0; cursor:pointer; display:inline-flex; align-items:center; gap:4px; text-decoration:none}
 .tbtn.muted{color:var(--ink-2); font-weight:600}
 .tbtn.teal{color:var(--teal-deep)}
-.dots{display:flex; gap:6px; align-items:center}
-.dots i{width:7px; height:7px; border-radius:99px; background:var(--track-2)}
-.dots i.on{width:20px; background:var(--ink)}
 
 /* tiga lapis */
 .layers{display:flex; flex-direction:column; gap:12px}
@@ -62,6 +59,10 @@ body{margin:0; background:var(--ground); color:var(--ink); font-family:var(--fon
 .on-navy .ly-st.good{color:var(--mint)} .on-navy .ly-st.mid{color:var(--on-navy-2)} .on-navy .ly-st.low{color:var(--sand)}
 .on-navy .ly-bar{background:var(--navy-2)}
 .navyband{background:var(--ink); color:var(--on-navy); padding:18px 22px 24px; display:flex; flex-direction:column; gap:20px}
+.pad.intro{gap:18px}
+.quick{margin:0; font-size:15px; font-weight:600; color:var(--teal-deep)}
+.btn.go{min-height:58px; font-size:17.5px}
+.byline{display:flex; gap:12px; align-items:center}
 .navyband .wm{color:var(--on-navy)}
 .navyband .tbtn{color:var(--on-navy-2)}
 

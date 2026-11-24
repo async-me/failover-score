@@ -86,7 +86,6 @@
   const CHECK = (c, s) => `<svg width="${s || 14}" height="${s || 14}" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>`;
   const CHEV = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>';
   const WM = '<span class="wm">Failover <span>Plan</span></span>';
-  function dots(n){ return `<div class="dots" aria-label="Halaman ${n} dari 3">${[1,2,3].map(i => `<i class="${i === n ? "on" : ""}"></i>`).join("")}</div>`; }
   function back(id, to, label){ return `<button type="button" class="tbtn muted" id="${id}" data-act="go:${to}">${CHEV}${label || "Back"}</button>`; }
   function layersHtml(vals, opt){
     opt = opt || {};
@@ -102,42 +101,26 @@
   /* ---------- layar ---------- */
   const SCREENS = {
     intro1(){
-      return `<div class="scr" data-swipe="1">
+      const initial = esc((CFG.OWNER_NAME || "B").charAt(0).toUpperCase());
+      return `<div class="scr">
         <div class="navyband">
-          <div class="bar">${WM}<button type="button" class="tbtn" id="skip1" data-act="go:q0">Skip</button></div>
+          <div class="bar">${WM}<span class="small" style="color:var(--on-navy-2)">${esc(CFG.HANDLE)}</span></div>
           ${layersHtml({income:.55, health:.85, ef:.7}, {navy:true, animate:true})}
           <p style="margin:0;font-size:14px;color:var(--on-navy-2)">Tiga lapis yang bikin keluarga tetap tenang, apa pun yang terjadi.</p>
         </div>
-        <div class="pad">
-          <div class="stack" style="gap:12px">
+        <div class="pad intro">
+          <div class="stack" style="gap:10px">
             <h1 class="h1 xl" tabindex="-1">Failover Score</h1>
-            <p class="lead">Health check 2 menit buat backup plan keuangan keluargamu.</p>
-            <p class="p">Keuangan keluarga yang ideal selalu punya backup, jadi tetap aman walau ada hal yang nggak terduga. Yuk cek seberapa kuat punyamu.</p>
+            <p class="lead">Seberapa kuat backup keuangan keluargamu? Cek dalam 2 menit.</p>
+            <p class="quick">8 pertanyaan, tinggal tap. Gratis, tanpa daftar.</p>
           </div>
-          <div class="foot"><div class="row">${dots(1)}<button type="button" class="btn auto" id="next-intro1" data-act="go:intro2">Next</button></div></div>
+          <div class="foot">
+            <button type="button" class="btn go" id="start" data-act="go:q0">Mulai cek</button>
+            <div class="byline"><div class="avatar">${initial}</div><p class="tiny" style="margin:0">Jawabanmu nggak disimpan, dan nggak ada yang bakal ngehubungin kamu kecuali kamu yang minta. Dibuat oleh <b style="color:var(--ink)">${esc(CFG.OWNER_NAME)}</b>, profesional teknologi dan konsultan asuransi berlisensi, buat edukasi.</p></div>
+            <p class="tiny" id="measure-note" style="margin:0">Web ini ngitung jumlah pengunjung${PIXEL_ID ? " dan pakai Meta Pixel" : ""} buat ngukur iklan. Jawaban, score, dan isi form kamu nggak ikut dikirim ke situ.</p>
+          </div>
         </div>
       </div>`;
-    },
-    intro2(){
-      const step = (n, t, d) => `<li><span class="n">${n}</span><div><b>${t}</b><p>${d}</p></div></li>`;
-      return `<div class="scr" data-swipe="1"><div class="pad">
-        <div class="bar">${WM}<button type="button" class="tbtn muted" id="skip2" data-act="go:q0">Skip</button></div>
-        <h1 class="h1 lg" style="padding-top:12px" tabindex="-1">Cuma 3 langkah, sekitar 2 menit</h1>
-        <ol class="plan">${step(1, "Jawab 8 pertanyaan", "Tinggal tap. Nggak perlu angka persis, kira-kira aja.")}${step(2, "Dapat score 0–100", "Plus gambaran tiga lapis backup keluargamu: mana yang udah kuat, mana yang masih bolong.")}${step(3, "Lihat yang bisa diperkuat", "Dan 1 langkah paling gampang buat mulai, sering kali tanpa beli apa-apa.")}</ol>
-        <div class="foot"><div class="row">${dots(2)}<button type="button" class="btn auto" id="next-intro2" data-act="go:intro3">Next</button></div></div>
-      </div></div>`;
-    },
-    intro3(){
-      const pt = (t, d) => `<li class="plain"><div><b>${t}</b><p>${d}</p></div></li>`;
-      const initial = esc((CFG.OWNER_NAME || "B").charAt(0).toUpperCase());
-      return `<div class="scr" data-swipe="1"><div class="pad">
-        <div class="bar">${WM}<span class="small">${esc(CFG.HANDLE)}</span></div>
-        <h1 class="h1 lg" style="padding-top:12px" tabindex="-1">Santai, ini bukan jualan</h1>
-        <ul class="fixes">${pt("No sign-up.", "Nggak perlu nama, email, atau nomor HP.")}${pt("Jawabanmu nggak disimpan.", "Score-nya cuma muncul di layar kamu. Data baru dikirim kalau kamu sendiri yang minta Report.")}${pt("Kamu yang pegang kendali.", "Nggak akan ada yang ngehubungin kamu, kecuali kamu sendiri yang minta.")}</ul>
-        <div style="display:flex;gap:12px;align-items:center"><div class="avatar">${initial}</div><p class="small" style="margin:0">Dibuat oleh <b style="color:var(--ink)">${esc(CFG.OWNER_NAME)}</b>, profesional di bidang teknologi dan konsultan asuransi berlisensi. Tool ini buat edukasi, bukan penawaran produk.</p></div>
-        <p class="tiny" id="measure-note" style="margin:0">Web ini ngitung jumlah pengunjung${PIXEL_ID ? " dan pakai Meta Pixel" : ""} buat ngukur iklan. Jawaban, score, dan isi form kamu nggak ikut dikirim ke situ.</p>
-        <div class="foot"><div style="display:flex;justify-content:center">${dots(3)}</div><button type="button" class="btn" id="start" data-act="go:q0">Start check</button></div>
-      </div></div>`;
     },
     question(i){
       const q = QUESTIONS[i], a = S.ans[i], last = i === 7, L = LAYERS.find(x => x.key === q.layer);
@@ -145,7 +128,7 @@
       const opts = q.opts.map((o, j) => `<button type="button" class="opt" role="radio" id="opt-${i}-${j}" aria-checked="${a === j}" data-act="ans:${i}:${j}"><span>${o[0]}</span><span class="ck">${a === j ? CHECK("#06231f") : ""}</span></button>`).join("");
       return `<div class="scr"><div class="pad">
         <div class="stack" style="gap:10px">
-          <div class="bar">${back("q-back", i === 0 ? "intro3" : "q" + (i - 1))}<span class="small" style="font-weight:600">${i + 1} dari 8</span></div>
+          <div class="bar">${back("q-back", i === 0 ? "intro1" : "q" + (i - 1))}<span class="small" style="font-weight:600">${i + 1} dari 8</span></div>
           <div class="ticks" aria-hidden="true">${ticks}</div>
         </div>
         <div class="stack" style="gap:10px">
@@ -356,6 +339,7 @@
     if (screen === "sent" && !S.code) screen = "form";
     if (screen === "form" && S.code) screen = "sent";        // form udah terkirim, jangan dobel
     if (screen === "form") FS.syncForm(S.ans, S.form);
+    if (screen === "intro2" || screen === "intro3") screen = "intro1";   // dulu pembukanya 3 layar
     S.screen = screen;
     if (screen === "q0") track("quiz_start");
     if (screen === "result") track("quiz_done");
@@ -413,16 +397,6 @@
     }
   });
   $app.addEventListener("change", e => { if (e.target.id === "f-consent"){ S.form.consent = e.target.checked; updateSubmit(); } });
-
-  /* swipe di layar intro */
-  let sx = null, sy = null;
-  $app.addEventListener("pointerdown", e => { if (/^intro/.test(S.screen)){ sx = e.clientX; sy = e.clientY; } });
-  $app.addEventListener("pointerup", e => {
-    if (sx == null) return; const dx = e.clientX - sx, dy = e.clientY - sy; sx = null;
-    if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy)) return;
-    const order = ["intro1", "intro2", "intro3"], i = order.indexOf(S.screen);
-    if (dx < 0) go(i < 2 ? order[i + 1] : "q0"); else if (i > 0) go(order[i - 1]);
-  });
 
   history.replaceState({screen:"intro1"}, "");
   renderScreen(false);
