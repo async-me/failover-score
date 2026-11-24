@@ -101,7 +101,6 @@
   /* ---------- layar ---------- */
   const SCREENS = {
     intro1(){
-      const initial = esc((CFG.OWNER_NAME || "B").charAt(0).toUpperCase());
       return `<div class="scr">
         <div class="navyband">
           <div class="bar">${WM}<span class="small" style="color:var(--on-navy-2)">${esc(CFG.HANDLE)}</span></div>
@@ -116,8 +115,7 @@
           </div>
           <div class="foot">
             <button type="button" class="btn go" id="start" data-act="go:q0">Mulai cek</button>
-            <div class="byline"><div class="avatar">${initial}</div><p class="tiny" style="margin:0">Jawabanmu nggak disimpan, dan nggak ada yang bakal ngehubungin kamu kecuali kamu yang minta. Dibuat oleh <b style="color:var(--ink)">${esc(CFG.OWNER_NAME)}</b>, profesional teknologi dan konsultan asuransi berlisensi, buat edukasi.</p></div>
-            <p class="tiny" id="measure-note" style="margin:0">Web ini ngitung jumlah pengunjung${PIXEL_ID ? " dan pakai Meta Pixel" : ""} buat ngukur iklan. Jawaban, score, dan isi form kamu nggak ikut dikirim ke situ.</p>
+            <p class="tiny fine" id="measure-note">Jawabanmu nggak disimpan. Yang dihitung cuma jumlah pengunjung${PIXEL_ID ? ", termasuk lewat Meta Pixel" : ""}.<br>Dibuat oleh ${esc(CFG.OWNER_NAME)}, konsultan asuransi berlisensi.</p>
           </div>
         </div>
       </div>`;

@@ -62,7 +62,7 @@ body{margin:0; background:var(--ground); color:var(--ink); font-family:var(--fon
 .pad.intro{gap:18px}
 .quick{margin:0; font-size:15px; font-weight:600; color:var(--teal-deep)}
 .btn.go{min-height:58px; font-size:17.5px}
-.byline{display:flex; gap:12px; align-items:center}
+.fine{margin:0; text-align:center; line-height:1.55}
 .navyband .wm{color:var(--on-navy)}
 .navyband .tbtn{color:var(--on-navy-2)}
 
