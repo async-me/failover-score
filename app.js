@@ -105,8 +105,7 @@
         <div class="navyband">
           <div class="bar">${WM}<span class="small" style="color:var(--on-navy-2)">${esc(CFG.HANDLE)}</span></div>
           ${layersHtml({income:.55, health:.85, ef:.7}, {navy:true, animate:true})}
-          <p style="margin:0;font-size:14px;color:var(--on-navy-2)">Tiga lapis yang bikin keluarga tetap tenang, apa pun yang terjadi.</p>
-        </div>
+          </div>
         <div class="pad intro">
           <div class="stack" style="gap:10px">
             <h1 class="h1 xl" tabindex="-1">Failover Score</h1>
@@ -115,7 +114,7 @@
           </div>
           <div class="foot">
             <button type="button" class="btn go" id="start" data-act="go:q0">Mulai cek</button>
-            <p class="tiny fine" id="measure-note">Jawabanmu nggak disimpan. Yang dihitung cuma jumlah pengunjung${PIXEL_ID ? ", termasuk lewat Meta Pixel" : ""}.<br>Dibuat oleh ${esc(CFG.OWNER_NAME)}, konsultan asuransi berlisensi.</p>
+            <p class="tiny fine" id="measure-note">Jawaban nggak disimpan, cuma kunjungan yang dihitung${PIXEL_ID ? " (termasuk Meta Pixel)" : ""}.<br>Dibuat oleh ${esc(CFG.OWNER_NAME)}, konsultan asuransi berlisensi.</p>
           </div>
         </div>
       </div>`;
